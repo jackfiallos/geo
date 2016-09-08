@@ -1,0 +1,174 @@
+#!/usr/bin/env node
+
+// Module dependencies
+var app = require('../app');
+var debug = require('debug')('geo:server');
+var fs = require('fs');
+var http = require('http');
+var https = require('https');
+var geolib = require('geolib');
+
+var privateKey  = fs.readFileSync('ssl/server.key', 'utf8');
+var certificate = fs.readFileSync('ssl/server.crt', 'utf8');
+var credentials = {key: privateKey, cert: certificate};
+
+// Get port from environment and store in Express
+var port = normalizePort(process.env.PORT || '8443');
+app.set('port', port);
+
+// Create HTTP server
+var server = http.createServer(app);
+var httpsServer = https.createServer(credentials, app);
+var io = require('socket.io')(httpsServer);
+var users = [];
+var enemy = [];
+
+// Create socket connection
+io.on('connection', function(socket) {
+	console.log('a user connected');
+
+	socket.on('disconnect', function () {
+		for (var i in users) {
+			var u = users[i];
+			var id = u.id;
+
+			if (id == socket.client.id) {
+				users.splice(i,1);
+				break;
+			}
+		}
+
+		socket.broadcast.emit('bye', id);
+	});
+
+	socket.on('position', function(pos) {
+		// cada usuario tendra su propio cuarto para mensajes directos
+		socket.join(socket.client.id);
+
+		console.log(socket.client.id);
+
+		if (users.length == 0) {
+			// el primer usuario se agrega
+			users.push({
+				id: socket.client.id,
+				position: pos
+			});
+		}
+		else {
+			// recorrer todos los usuarios para determinar 
+			// si o no agregar al arreglo el recién conectado
+			for (var i in users) {
+				var u = users[i];
+
+				if (u.id != socket.client.id) {
+					users.push({
+						id: socket.client.id,
+						position: pos
+					});
+					break;
+				}
+			}
+
+			// recorrer los usuarios para determinar los q están
+			// más cercanos al centro del recién conectado
+			for (var i in users) {
+				var u = users[i];
+				// evitar que se tome en cuenta el usuario recién conectado
+				if (u.id != socket.client.id) {
+					result = geolib.isPointInCircle(
+						u.position, // clientes conectados
+						pos, // centro
+						200 // radio de 150 mts
+					);
+
+					if (result) {
+						// io.in(u.id).emit('near', u);
+						socket.broadcast.emit('near', {
+							id: socket.client.id,
+							position: u.position
+						});
+					}
+				}
+				else {
+					io.in(socket.client.id).emit('near', u);
+				}
+			}
+		}
+	});
+});
+
+// Listen on provided port, on all network interfaces
+// server.listen(port);
+// server.on('error', onError);
+// server.on('listening', onListening);
+
+httpsServer.listen(port);
+httpsServer.on('error', onError);
+httpsServer.on('listening', onListening);
+
+/**
+ * Normalize a port into a number, string, or false
+ * @author jackfiallos
+ * @version [version]
+ * @date    2016-08-31
+ * @param   {[type]}   val [description]
+ * @return  {[type]}       [description]
+ */
+function normalizePort(val) {
+	var port = parseInt(val, 10);
+
+	if (isNaN(port)) {
+		// named pipe
+		return val;
+	}
+
+	if (port >= 0) {
+		// port number
+		return port;
+	}
+
+	return false;
+}
+
+/**
+ * Event listener for HTTP server "error" event
+ * @author jackfiallos
+ * @version [version]
+ * @date    2016-08-31
+ * @param   {[type]}   error [description]
+ * @return  {[type]}         [description]
+ */
+function onError(error) {
+	if (error.syscall !== 'listen') {
+		throw error;
+	}
+
+	var bind = typeof port === 'string' ? 'Pipe ' + port : 'Port ' + port;
+
+	// handle specific listen errors with friendly messages
+	switch (error.code) {
+		case 'EACCES':
+			console.error(bind + ' requires elevated privileges');
+			process.exit(1);
+			break;
+		case 'EADDRINUSE':
+			console.error(bind + ' is already in use');
+			process.exit(1);
+			break;
+		default:
+			throw error;
+	}
+}
+
+/**
+ * Event listener for HTTP server "listening" event
+ * @author jackfiallos
+ * @version [version]
+ * @date    2016-08-31
+ * @return  {[type]}   [description]
+ */
+function onListening() {
+	var addr = httpsServer.address();
+	var bind = typeof addr === 'string' ? 'pipe ' + addr : 'port ' + addr.port;
+	debug('Listening on ' + bind);
+}

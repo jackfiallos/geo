@@ -1,0 +1,12 @@
+doctype html
+html
+	head
+		title= title
+		link(rel='stylesheet', href='/stylesheets/style.css')
+		meta(name='viewport', content='width=device-width')
+		meta(charset='utf-8')
+		script(src='https://code.jquery.com/jquery-2.2.4.min.js', integrity='sha256-BbhdlvQf/xTY9gja0Dq3HiwQF8LaCRTXxZKRutelT44=', crossorigin='anonymous')
+		script(src='/socket.io/socket.io.js')
+	body
+		block content
+		script(src='https://maps.googleapis.com/maps/api/js?key=AIzaSyBlNt-ncOkFuoaasJwjnKx03Vfkw6dSRNk&callback=initialize', async, defer)
