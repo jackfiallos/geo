@@ -1,3 +1,5 @@
 /node_modules/
 /ssl/
 /public/javascripts/vendor/
+
+public/javascripts/.DS_Store

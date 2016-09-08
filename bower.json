@@ -15,6 +15,7 @@
     "tests"
   ],
   "dependencies": {
-    "pixi.js": "^4.0.0"
+    "pixi.js": "^4.0.0",
+    "pixi-particles": "^1.6.8"
   }
 }

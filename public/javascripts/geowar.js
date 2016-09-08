@@ -44,7 +44,7 @@ $(document).ready(function() {
 						// $('#log').append('<div>'+lastPosition+'</div>');
 
 						socket.emit('position', {
-							lat: position.coords.latitude, 
+							lat: position.coords.latitude,
 							lng: position.coords.longitude
 						});
 					}
@@ -58,8 +58,8 @@ $(document).ready(function() {
 					alert(e.message);
 					circle.setVisible(false);
 				}, {
-					enableHighAccuracy: true, 
-					maximumAge: 0, 
+					enableHighAccuracy: true,
+					maximumAge: 0,
 					timeout: 1000
 				});
 			}
@@ -257,10 +257,10 @@ var initialize = function() {
 		// 	var c_lng = bounds.getCenter().lng() / 57.2958
 		// 	// distance = circle radius from center to Northeast corner of bounds
 		// 	var r_km = r * Math.acos(Math.sin(c_lat) * Math.sin(ne_lat) + Math.cos(c_lat) * Math.cos(ne_lat) * Math.cos(ne_lng - c_lng));
-			
+
 		// 	circle.setRadius(r_km * 200);
 		// 	mapa.setCenter(marker.getPosition());
-			
+
 		// 	$('#log').append('<div>Zoom changed</div>');
 		// });
 	}, function(e) {
@@ -280,31 +280,53 @@ var initialize = function() {
 		var position = overlayProjection.fromLatLngToDivPixel(this.pos);
 
 		var pixi = document.createElement('div');
-		pixi.style.position = 'absolute';
-		document.body.appendChild(pixi);
-
 		var stage = new PIXI.Container();
 		var renderer = PIXI.autoDetectRenderer(window.innerWidth, window.innerHeight, {transparent: true});
-		renderer.view.style.border = "3px solid red";
+		var graphics = new PIXI.Graphics();
+		var cat = null;
+		var count = 0;
+		var state = play;
+
+		// pixi.style.position = 'absolute';
+		document.body.appendChild(pixi);
+		// renderer.view.style.border = "3px solid red";
 		pixi.appendChild(renderer.view);
+		stage.interactive = true;
+		stage.addChild(graphics);
 
-		PIXI.loader.add('bunny', './images/square.png').on('progress', function(loader, resource) {
-			//Display the file `url` currently being loaded
-			console.log("loading: " + resource.url); 
-
-			//Display the precentage of files currently loaded
-			console.log("progress: " + loader.progress + "%"); 
+		PIXI.loader.add('square', './images/airplane.png').on('progress', function(loader, resource) {
+			console.log("loading: " + resource.url);
+			console.log("progress: " + loader.progress + "%");
 		}).load(function(loader, resources) {
-			var cat = new PIXI.Sprite(resources.bunny.texture);
-			cat.position.x = position.x - 11;
-			cat.position.y = position.y - 11;
-
+			cat = new PIXI.Sprite(resources.square.texture);
+			cat.position.x = position.x - 16;
+			cat.position.y = position.y - 16;
 			stage.addChild(cat);
-			renderer.render(stage);
+			gameLoop();
 		});
+
+		function gameLoop() {
+			state();
+			renderer.render(stage);
+			requestAnimationFrame(gameLoop); // Loop this function 60 times per second
+		}
+
+		function play() {
+			if (count > 150) {
+				count = 0;
+			}
+
+			graphics.lineStyle(3, 0xf44336, 10/count);
+			graphics.drawCircle(position.x, position.y, count);
+			if (count%2 == 0) {
+				graphics.clear();
+			}
+			count += 1;
+		}
 
 		panes.overlayMouseTarget.appendChild(pixi);
 	}
+
 
 	//set position
 	MapLocationIcon.prototype.draw = function(){
