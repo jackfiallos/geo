@@ -27,6 +27,10 @@ var enemy = [];
 io.on('connection', function(socket) {
 	console.log('a user connected');
 
+	/**
+	 * [u description]
+	 * @type {[type]}
+	 */
 	socket.on('disconnect', function () {
 		for (var i in users) {
 			var u = users[i];
@@ -38,25 +42,30 @@ io.on('connection', function(socket) {
 			}
 		}
 
-		socket.broadcast.emit('bye', id);
+		socket.broadcast.emit('closed', id);
 	});
 
+	/**
+	 * [length description]
+	 * @type {[type]}
+	 */
 	socket.on('position', function(pos) {
-		// cada usuario tendra su propio cuarto para mensajes directos
+		// each user have their own room
 		socket.join(socket.client.id);
 
-		console.log(socket.client.id);
+		console.log(pos);
+
+		debugger;
 
 		if (users.length == 0) {
-			// el primer usuario se agrega
+			// first user
 			users.push({
 				id: socket.client.id,
 				position: pos
 			});
 		}
 		else {
-			// recorrer todos los usuarios para determinar 
-			// si o no agregar al arreglo el recién conectado
+			// verify if user is already connected
 			for (var i in users) {
 				var u = users[i];
 
@@ -69,28 +78,30 @@ io.on('connection', function(socket) {
 				}
 			}
 
-			// recorrer los usuarios para determinar los q están
-			// más cercanos al centro del recién conectado
+			// find near users
 			for (var i in users) {
 				var u = users[i];
-				// evitar que se tome en cuenta el usuario recién conectado
+				// new user is avoided
 				if (u.id != socket.client.id) {
 					result = geolib.isPointInCircle(
-						u.position, // clientes conectados
-						pos, // centro
-						200 // radio de 150 mts
+						u.position, // position
+						pos, // center
+						200 // radius 200 mts
 					);
 
 					if (result) {
-						// io.in(u.id).emit('near', u);
-						socket.broadcast.emit('near', {
+						// send signal connection to near user
+						io.in(u.id).emit('near', {
 							id: socket.client.id,
+							position: pos
+						});
+
+						// send signal connection to current user
+						io.in(socket.client.id).emit('near', {
+							id: u.id,
 							position: u.position
 						});
 					}
-				}
-				else {
-					io.in(socket.client.id).emit('near', u);
 				}
 			}
 		}
