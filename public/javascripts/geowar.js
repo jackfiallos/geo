@@ -17,6 +17,7 @@ var graphics = new PIXI.Graphics();
 var tank = null;
 var count = 0;
 var elapsed = Date.now();
+// var geoInterval = null;
 
 /**
  * [onunload description]
@@ -24,6 +25,7 @@ var elapsed = Date.now();
  */
 window.onunload = function() {
 	socket.emit('disconnect');
+	// clearInterval('geoInterval');
 };
 
 /**
@@ -37,6 +39,7 @@ var initialize = function() {
 	pixi.appendChild(renderer.view);
 	stage.interactive = true;
 	stage.addChild(graphics);
+	geolocalize();
 
 	PIXI.loader.add({
 		'name':'airplane',
@@ -77,8 +80,12 @@ var initialize = function() {
 
 			overlay = new MapLocationIcon(mapa, lat, lng);
 
+			// geoInterval = setInterval(function(){
+			// 	geolocalize();
+			// }, 1000);
+
 		}, function(e) {
-			alert(e.message);
+			console.log(e.message);
 		});
 
 		/**
@@ -102,8 +109,8 @@ var initialize = function() {
 		MapLocationIcon.prototype.onAdd = function() {
 			// send coordinates to main server
 			socket.emit('position', {
-				latitude: this.pos.lat(),
-				longitude: this.pos.lng()
+				lat: this.pos.lat(),
+				lng: this.pos.lng()
 			});
 
 			panes = this.getPanes();
@@ -242,7 +249,7 @@ var MapLocationIcon = function(map, lat, lng) {
  */
 var geolocalize = function() {
 	if (navigator.geolocation) {
-		watcher = navigator.geolocation.watchPosition(function(position) {
+		watcher = navigator.geolocation.getCurrentPosition(function(position) {
 			var distance = 0;
 
 			currentPosition = new google.maps.LatLng(position.coords.latitude, position.coords.longitude);
@@ -265,10 +272,22 @@ var geolocalize = function() {
 				});
 			}
 
-			marker.setPosition(currentPosition);
-			mapa.setCenter(currentPosition);
+			// marker.setPosition(currentPosition);
+			if (mapa) {
+				mapa.setCenter(currentPosition);
+
+				for(var i in stage.children) {
+					if ((stage.children[i].hasOwnProperty('inquire')) && (!stage.children[i].inquire.hasOwnProperty('id'))) {
+						var position = overlayProjection.fromLatLngToDivPixel(currentPosition);
+						var airplane = stage.children[i];
+						airplane.position.x = position.x - 16;
+						airplane.position.y = position.y - 16;
+						break;
+					}
+				}
+			}
 		}, function(e) {
-			alert(e.message);
+			console.log(e.message);
 		}, {
 			enableHighAccuracy: true,
 			maximumAge: 0,
@@ -288,22 +307,39 @@ var geolocalize = function() {
  */
 socket.on('near', function(obj) {
 	if (typeof(obj) !== 'undefined') {
-		var LatLng = new google.maps.LatLng(obj.position.latitude, obj.position.longitude);
+		var LatLng = new google.maps.LatLng(obj.position.lat, obj.position.lng);
 		var position = overlayProjection.fromLatLngToDivPixel(LatLng);
-		var airplane = new PIXI.Sprite(PIXI.loader.resources.airplane.texture);
+
+		var airplane = null;
+		// console.log(overlayProjection);
+		// console.log(stage.children);
+
+		for(var i in stage.children) {
+			if ((stage.children[i].hasOwnProperty('inquire')) && (stage.children[i].inquire.id == obj.id)) {
+				airplane = stage.children[i];
+				break;
+			}
+		}
+
+		if (!airplane) {
+			airplane = new PIXI.Sprite(PIXI.loader.resources.airplane.texture);
+		}
+
 		airplane.interactive = true;
 		airplane.id = obj.id;
+		airplane.position.x = position.x - 16;
+		airplane.position.y = position.y - 16;
 		airplane.inquire = {
+			id: obj.id,
 			level: 1,
 			life: 100,
 			armor: 100,
 			ammo: {
 				't1': 10,
 				't2': 50
-			}
+			},
+			position: position
 		};
-		airplane.position.x = position.x - 16;
-		airplane.position.y = position.y - 16;
 		airplane.mousedown = airplane.touchstart = function (e) {
 			onShooting(e, position, airplane.inquire);
 		}

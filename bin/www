@@ -7,6 +7,7 @@ var fs = require('fs');
 var http = require('http');
 var https = require('https');
 var geolib = require('geolib');
+var internalIp = require('internal-ip');
 
 var privateKey  = fs.readFileSync('ssl/server.key', 'utf8');
 var certificate = fs.readFileSync('ssl/server.crt', 'utf8');
@@ -14,6 +15,8 @@ var credentials = {key: privateKey, cert: certificate};
 
 // Get port from environment and store in Express
 var port = normalizePort(process.env.PORT || '8443');
+const ip = internalIp.v4();
+
 app.set('port', port);
 
 // Create HTTP server
@@ -113,7 +116,17 @@ io.on('connection', function(socket) {
 // server.on('error', onError);
 // server.on('listening', onListening);
 
-httpsServer.listen(port);
+httpsServer.listen(port, (err) => {
+	if (err) {
+      console.log(err);
+      return;
+    }
+
+    console.log(' --------------------------------------');
+    console.log(`    Local: https://localhost:${port}`);
+    console.log(` External: https://${ip}:${port}`);
+    console.log(' --------------------------------------');
+});
 httpsServer.on('error', onError);
 httpsServer.on('listening', onListening);
 
