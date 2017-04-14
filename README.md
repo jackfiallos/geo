@@ -9,6 +9,8 @@ Ideas and contributions are welcome :)
 
 ### Before start ###
 
+You need to use ssl protocol, so please generate your own keys (server.key - server.crt) and put inside a folder called "ssl" in the main path.
+
 Depending on the pixi branch you donwnload, maybe it's required to compile pixie in order to get the lib compiled.
 
 ```
